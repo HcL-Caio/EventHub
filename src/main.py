@@ -1,15 +1,28 @@
 from fastapi import FastAPI
-from src.routes.eventos import router as eventos_router
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+import os
 
-app = FastAPI(
-    title="EventHub API",
-    description="API para gestão de eventos, campeonatos e inscrições",
-    version="1.0.0"
+app = FastAPI(title="EventHub API")
+
+# 🔓 Configuração de CORS (Essencial para o JavaScript conseguir falar com a API)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-@app.get("/")
-def raiz():
-    return {"mensagem": "Bem-vindo ao EventHub! A API está online."}
+# 📂 Caminho absoluto para a pasta public
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 
-# Registra as rotas de eventos no sistema
-app.include_router(eventos_router)
+# 🌐 Rota para carregar o HTML principal do site
+@app.get("/site")
+def read_site():
+    return FileResponse(os.path.join(PUBLIC_DIR, "index.html"))
+
+# 🛠️ A LINHA MÁGICA: Monta a pasta public para servir o app.js e o style.css automaticamente
+app.mount("/", StaticFiles(directory=PUBLIC_DIR), name="public")
