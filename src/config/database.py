@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import sqlite3
 import os
 
@@ -50,29 +49,7 @@ def init_db():
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO torneios (nome, data, status) VALUES (?, ?, ?)", ("Copa Masters Valorant", "20/Jun às 19:00", "Inscrições Abertas"))
         cursor.execute("INSERT INTO torneios (nome, data, status) VALUES (?, ?, ?)", ("LoL Community Cup", "25/Jun às 14:00", "Em Breve"))
+        cursor.execute("INSERT INTO torneios (nome, data, status) VALUES (?, ?, ?)", ("Torneio Counter-Strike 2", "02/Jul às 20:00", "Inscrições Abertas"))
         
     conn.commit()
     conn.close()
-=======
-import os
-import mysql.connector
-from mysql.connector import Error
-from dotenv import load_dotenv
-
-load_dotenv()
-
-def obter_conexao():
-    try:
-        conexao = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME"),
-            port=int(os.getenv("DB_PORT", 3306))
-        )
-        if conexao.is_connected():
-            return conexao
-    except Error as e:
-        print(f"Erro ao conectar ao MySQL: {e}")
-        return None
->>>>>>> 490083f6217b083d25ca46cd5ae63188e97480c4
