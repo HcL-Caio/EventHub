@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EventHub - Portal de Torneios</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* 🎨 PALETA EXCLUSIVA GRADIENTE */
+        :root {
+            --bg-main: #0a0d16;
+            --bg-sidebar: #111625;
+            --bg-card: #171e31;
+            --border-color: #242f4a;
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --shadow: rgba(0, 0, 0, 0.4);
+            --grad-primary: linear-gradient(135deg, #a012ff 0%, #dd702a 100%);
+        }
+
+        .light-theme {
+            --bg-main: #f1f5f9;
+            --bg-sidebar: #ffffff;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --success: #16a34a;
+            --shadow: rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* CONTAINER DO PORTAL PÚBLICO */
+        .portal-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: var(--bg-main);
+        }
+
+        .public-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2rem 2.5rem;
+            background-color: var(--bg-sidebar);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .public-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        /* 👻 LOGO DO CABEÇALHO: Corta as bordas brancas perfeitamente */
+        .ghost-logo-icon {
+            width: 38px !important;
+            height: 38px !important;
+            object-fit: cover !important;
+            border-radius: 50% !important;
+            display: inline-block;
+        }
+
+        .public-logo span {
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            background-clip: text; 
+            -webkit-text-fill-color: transparent;
+        }
+
+        .public-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .select-lang {
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-icon-nav {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-admin-login {
+            background: var(--grad-primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* HERO E FEED DO PORTAL PÚBLICO */
+        .public-content {
+            padding: 2.5rem;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .hero-section {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .hero-section h2 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .grid-public-view {
+            display: grid;
+            grid-template-columns: 1.7fr 1.3fr;
+            gap: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .card-map-public, .card-form-public {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 2rem;
+            border-radius: 12px;
+        }
+
+        .public-feed-section {
+            margin-top: 2rem;
+        }
+
+        .grid-feed-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .public-card {
+            background-color: var(--bg-card);
+            border-left: 4px solid #a012ff;
+            border-top: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+        }
+
+        .public-card h4 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .public-card p {
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        /* 🔒 OVERLAY TELA DE LOGIN */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 13, 22, 0.8);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .login-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 3rem 2.5rem;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .btn-close-login {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .login-logo-img {
+            width: 85px !important;
+            height: 85px !important;
+            object-fit: cover !important;
+            border-radius: 50% !important;
+            margin: 0 auto 1.2rem auto;
+            display: block;
+        }
+
+        /* 💻 LAYOUT DO ADMIN */
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 270px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2rem 1.2rem;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 3rem;
+        }
+
+        .sidebar-logo-img {
+            width: 36px !important;
+            height: 36px !important;
+            object-fit: cover !important;
+            border-radius: 50% !important;
+            display: inline-block;
+        }
+
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: var(--grad-primary);
+            -webkit-background-clip: text;
+            background-clip: text; 
+            -webkit-text-fill-color: transparent;
+        }
+
+        .menu {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex-grow: 1;
+        }
+
+        .menu a {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .menu a:hover {
+            color: #fff;
+            background-color: rgba(160, 18, 255, 0.06);
+        }
+
+        .menu a.active {
+            color: #ffffff;
+            background: var(--grad-primary);
+            box-shadow: 0 4px 15px rgba(160, 18, 255, 0.25);
+        }
+
+        /* INPUTS, TABLES & UTILS */
+        .input-group {
+            margin-bottom: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+
+        .input-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .input-group input, .input-group textarea, .input-group select {
+            background-color: rgba(10, 13, 22, 0.6);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 11px 14px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: var(--grad-primary);
+            color: #ffffff;
+            border: none;
+            padding: 13px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 2.5rem;
+        }
+
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .grid-form-view {
+            display: grid;
+            grid-template-columns: 1.1fr 1.9fr;
+            gap: 2rem;
+        }
+
+        .card-form, .card-list {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .custom-table th {
+            text-align: left;
+            padding: 12px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .custom-table td {
+            padding: 14px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-footer {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-theme, .btn-logout {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .status-api {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-muted);
+            border-radius: 50%;
+        }
+
+        .status-dot.online {
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+    </style>
+</head>
+<body class="dark-theme">
+
+    <div id="portal-publico" class="portal-container">
+        <header class="public-header">
+            <div class="public-logo">
+                <img src="freepik_br_907351bd-bca3-4c28-aefc-a72479a06a48.png" alt="Ghost Logo" class="ghost-logo-icon">
+                <span id="txtLogo">EventHub</span>
+            </div>
+            <div class="public-controls">
+                <select id="select-language" class="select-lang">
+                    <option value="pt">🇧🇷 PT</option>
+                    <option value="en">🇺🇸 EN</option>
+                </select>
+                <button id="theme-toggle-public" class="btn-icon-nav"><i class="fa-solid fa-sun"></i></button>
+                <button id="btn-abrir-login" class="btn-admin-login"><i class="fa-solid fa-lock"></i> Painel Admin</button>
+            </div>
+        </header>
+
+        <main class="public-content">
+            <div class="hero-section">
+                <h2 id="txtHeroTitle">Explore Torneios Próximos</h2>
+                <p id="txtHeroDesc">Encontre campeonatos criados pela comunidade ou registre o seu próprio evento clicando no mapa!</p>
+            </div>
+
+            <div class="grid-public-view">
+                <div class="card-map-public">
+                    <h3 id="txtMapaComunidade"><i class="fa-solid fa-earth-americas"></i> Mapa de Torneios da Comunidade</h3>
+                    <div id="public-map" style="height: 450px; border-radius: 12px; margin-top: 15px; z-index: 1;"></div>
+                </div>
+
+                <div class="card-form-public">
+                    <h3 id="txtCriarRemoto"><i class="fa-solid fa-plus"></i> Publicar Meu Torneio</h3>
+                    <form id="form-evento-publico">
+                        <div class="input-group">
+                            <label id="lblPubNome">Nome do Torneio</label>
+                            <input type="text" id="pub-ev-nome" required placeholder="Ex: Copa Sampa de LoL">
+                        </div>
+                        <div class="input-group">
+                            <label id="lblPubData">Data do Evento</label>
+                            <input type="date" id="pub-ev-data" required>
+                        </div>
+                        <div class="input-group">
+                            <label id="lblPubLocal">Coordenadas (Clique no mapa ao lado)</label>
+                            <input type="text" id="pub-ev-local" required readonly placeholder="Clique no mapa para marcar">
+                        </div>
+                        <div class="input-group">
+                            <label id="lblPubDesc">Descrição / Premiação</label>
+                            <textarea id="pub-ev-descricao" rows="4" placeholder="Regras, premiações e contato..."></textarea>
+                        </div>
+                        <button type="submit" id="btnEnviarPublico" class="btn-submit">Lançar Torneio na Rede</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="public-feed-section">
+                <h3 id="txtListaGlobal"><i class="fa-solid fa-fire"></i> Torneios Ativos na Sua Região</h3>
+                <div id="lista-eventos-publicos" class="grid-feed-cards"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="login-overlay" class="login-overlay" style="display: none;">
+        <div class="login-card">
+            <button id="btn-fechar-login" class="btn-close-login"><i class="fa-solid fa-xmark"></i></button>
+            <img src="freepik_br_907351bd-bca3-4c28-aefc-a72479a06a48.png" alt="Ghost Logo" class="login-logo-img">
+            <h2>Área Administrative</h2>
+            <p>Insira suas credenciais para gerenciar o EventHub</p>
+            
+            <form id="form-login">
+                <div class="input-group">
+                    <label>E-mail institucional</label>
+                    <input type="email" id="login-email" required placeholder="admin@eventhub.com">
+                </div>
+                <div class="input-group">
+                    <label>Senha de acesso</label>
+                    <input type="password" id="login-senha" required placeholder="••••••">
+                </div>
+                <button type="submit" class="btn-submit">Entrar no Painel</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-dashboard" class="dashboard-container" style="display: none;">
+        <aside class="sidebar">
+            <div class="logo-container">
+                <img src="freepik_br_907351bd-bca3-4c28-aefc-a72479a06a48.png" alt="Ghost Logo" class="sidebar-logo-img">
+                <div class="logo-text">EventHub</div>
+            </div>
+            
+            <nav class="menu">
+                <a href="#section-eventos" class="active"><i class="fa-solid fa-calendar-days"></i> Monitor de Eventos</a>
+                <a href="#section-participantes"><i class="fa-solid fa-users"></i> Participantes</a>
+                <a href="#section-campeonatos"><i class="fa-solid fa-trophy"></i> Campeonatos</a>
+                <a href="#section-inscricoes"><i class="fa-solid fa-file-signature"></i> Inscrições</a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <button id="theme-toggle" class="btn-theme"><i class="fa-solid fa-sun"></i> Mudar Tema</button>
+                <button id="btn-logout" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Sair do Painel</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <h1>Painel de Controle Admin</h1>
+                <div class="status-api" id="api-status">
+                    <span class="status-dot"></span> Conectando à API...
+                </div>
+            </header>
+
+            <section id="section-eventos" class="content-section">
+                <div class="card-list">
+                    <h3>Eventos Enviados pela Comunidade</h3>
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Nome do Evento</th>
+                                <th>Localização (Coordenadas)</th>
+                                <th>Data de Início</th>
+                                <th>Descrição do Torneio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-eventos-admin"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="section-participantes" class="content-section" style="display:none;">
+                <div class="grid-form-view">
+                    <div class="card-form">
+                        <h3>Cadastrar Participante</h3>
+                        <form id="form-participante">
+                            <div class="input-group"><label>Nome Completo</label><input type="text" id="part-nome" required placeholder="Nome do jogador"></div>
+                            <div class="input-group"><label>E-mail</label><input type="email" id="part-email" required placeholder="exemplo@email.com"></div>
+                            <div class="input-group"><label>Telefone</label><input type="text" id="part-telefone" placeholder="(00) 00000-0000"></div>
+                            <button type="submit" class="btn-submit">Salvar Competidor</button>
+                        </form>
+                    </div>
+                    <div class="card-list">
+                        <h3>Atletas Registrados</h3>
+                        <table class="custom-table">
+                            <thead><tr><th>ID</th><th>Nome</th><th>E-mail</th><th>Telefone</th></tr></thead>
+                            <tbody id="tabela-participantes"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="section-campeonatos" class="content-section" style="display:none;">
+                <div class="grid-form-view">
+                    <div class="card-form">
+                        <h3>Criar Nova Chave / Modalidade</h3>
+                        <form id="form-campeonato">
+                            <div class="input-group"><label>Vincular ao Evento</label><select id="camp-evento" required></select></div>
+                            <div class="input-group"><label>Modalidade / Jogo</label><input type="text" id="camp-modalidade" required placeholder="Ex: Valorant 5v5"></div>
+                            <div class="input-group"><label>Premiação (R$)</label><input type="number" step="0.01" id="camp-premiacao" value="0.00"></div>
+                            <div class="input-group"><label>Vagas Limitadas</label><input type="number" id="camp-vagas" required value="16"></div>
+                            <button type="submit" class="btn-submit">Criar Campeonato</button>
+                        </form>
+                    </div>
+                    <div class="card-list">
+                        <h3>Modalidades e Chaves Ativas</h3>
+                        <table class="custom-table">
+                            <thead><tr><th>Evento Relacionado</th><th>Modalidade</th><th>Premiação</th><th>Vagas</th></tr></thead>
+                            <tbody id="tabela-campeonatos"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="section-inscricoes" class="content-section" style="display:none;">
+                <div class="grid-form-view">
+                    <div class="card-form">
+                        <h3>Inscrever Atleta em Modalidade</h3>
+                        <form id="form-inscricao">
+                            <div class="input-group"><label>Selecione o Participante</label><select id="ins-participante" required></select></div>
+                            <div class="input-group"><label>Selecione o Campeonato</label><select id="ins-campeonato" required></select></div>
+                            <button type="submit" class="btn-submit">Confirmar Matrícula na Chave</button>
+                        </form>
+                    </div>
+                    <div class="card-list">
+                        <h3>Livro de Inscrições Confirmadas</h3>
+                        <table class="custom-table">
+                            <thead><tr><th>Participante</th><th>Modalidade</th><th>Evento Pai</th><th>Status</th></tr></thead>
+                            <tbody id="tabela-inscricoes"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+const API_URL = "http://127.0.0.1:8000";
+
+let publicMap;
+let publicMarker;
+let marcadoresEventos = [];
+
+const dicionario = {
+    pt: {
+        txtHeroTitle: "Explore Torneios Próximos",
+        txtHeroDesc: "Encontre campeonatos criados pela comunidade ou registre o seu próprio evento clicando no mapa!",
+        txtMapaComunidade: "<i class='fa-solid fa-earth-americas'></i> Mapa de Torneios da Comunidade",
+        txtCriarRemoto: "<i class='fa-solid fa-plus'></i> Publicar Meu Torneio",
+        lblPubNome: "Nome do Torneio",
+        lblPubData: "Data do Evento",
+        lblPubLocal: "Coordenadas (Clique no mapa acima)",
+        lblPubDesc: "Descrição / Premiação",
+        btnEnviarPublico: "Lançar Torneio na Rede",
+        txtListaGlobal: "<i class='fa-solid fa-fire'></i> Torneios Ativos na Sua Região"
+    },
+    en: {
+        txtHeroTitle: "Explore Nearby Tournaments",
+        txtHeroDesc: "Find championships created by the community or register your own event by clicking on the map!",
+        txtMapaComunidade: "<i class='fa-solid fa-earth-americas'></i> Community Tournaments Map",
+        txtCriarRemoto: "<i class='fa-solid fa-plus'></i> Publish My Tournament",
+        lblPubNome: "Tournament Name",
+        lblPubData: "Event Date",
+        lblPubLocal: "Coordinates (Click on the map above)",
+        lblPubDesc: "Description / Prizes",
+        btnEnviarPublico: "Launch Tournament on Network",
+        txtListaGlobal: "<i class='fa-solid fa-fire'></i> Active Tournaments in Your Area"
+    }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+    inicializarPortalPublico();
+    configurarNavegacaoLogin();
+    configurarTema();
+    configurarIdioma();
+});
+
+// 🌐 INICIALIZA O PORTAL DA COMUNIDADE COM MAPA INTEGRADO
+async function inicializarPortalPublico() {
+    publicMap = L.map('public-map').setView([-15.7801, -47.9292], 4);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(publicMap);
+
+    publicMap.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        document.getElementById("pub-ev-local").value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+        
+        if (publicMarker) {
+            publicMarker.setLatLng(e.latlng);
+        } else {
+            publicMarker = L.marker(e.latlng).addTo(publicMap);
+        }
+    });
+
+    await carregarDadosPublicos();
+    configurarFormularioPublico();
+}
+
+// 📥 TRAZ OS TORNEIOS DA API PARA O MAPA E PARA AS LISTAS
+async function carregarDadosPublicos() {
+    try {
+        const res = await fetch(API_URL + "/eventos/");
+        if (!res.ok) return;
+        const eventos = await res.json();
+
+        const gridPublico = document.getElementById("lista-eventos-publicos");
+        const tabelaAdmin = document.getElementById("tabela-eventos-admin");
+        const selectCampeonato = document.getElementById("camp-evento");
+
+        if (gridPublico) gridPublico.innerHTML = "";
+        if (tabelaAdmin) tabelaAdmin.innerHTML = "";
+        if (selectCampeonato) selectCampeonato.innerHTML = '<option value="">Selecione...</option>';
+
+        marcadoresEventos.forEach(m => publicMap.removeLayer(m));
+        marcadoresEventos = [];
+
+        eventos.forEach(ev => {
+            // 1. Gera cartões visuais para os visitantes do Portal
+            if (gridPublico) {
+                gridPublico.innerHTML += `
+                    <div class="public-card">
+                        <h4>${ev.nome}</h4>
+                        <p><i class="fa-solid fa-calendar-day"></i> <strong>Data:</strong> ${new Date(ev.data_inicio).toLocaleDateString('pt-BR')}</p>
+                        <p><i class="fa-solid fa-location-dot"></i> <strong>GPS:</strong> ${ev.local_evento}</p>
+                        <p class="feed-desc-text">${ev.descricao || 'Sem descrição adicional.'}</p>
+                    </div>`;
+            }
+
+            // 2. Alimenta a lista de gerenciamento interno do Admin
+            if (tabelaAdmin) {
+                tabelaAdmin.innerHTML += `<tr>
+                    <td><strong>${ev.nome}</strong></td>
+                    <td>${ev.local_evento}</td>
+                    <td>${new Date(ev.data_inicio).toLocaleDateString('pt-BR')}</td>
+                    <td>${ev.descricao || '-'}</td>
+                </tr>`;
+            }
+
+            if (selectCampeonato) {
+                selectCampeonato.innerHTML += `<option value="${ev.id_evento}">${ev.nome}</option>`;
+            }
+
+            // 3. Adiciona marcador no mapa
+            const coords = ev.local_evento.split(",").map(Number);
+            if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
+                const pino = L.marker([coords[0], coords[1]]).addTo(publicMap)
+                    .bindPopup(`<b>${ev.nome}</b><br>${ev.descricao || ''}`);
+                marcadoresEventos.push(pino);
+            }
+        });
+    } catch (err) {
+        console.error("Erro ao carregar dados da API:", err);
+    }
+}
+
+// 📤 ENVIO DO FORMULÁRIO COMUNITÁRIO (CRIAÇÃO COMPLETA)
+function configurarFormularioPublico() {
+    document.getElementById("form-evento-publico").onsubmit = async (e) => {
+        e.preventDefault();
+        const dados = {
+            nome: document.getElementById("pub-ev-nome").value,
+            data_inicio: document.getElementById("pub-ev-data").value,
+            local_evento: document.getElementById("pub-ev-local").value,
+            descricao: document.getElementById("pub-ev-descricao").value
+        };
+
+        const res = await fetch(API_URL + "/eventos/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dados)
+        });
+
+        if (res.ok) {
+            alert("Sucesso! Seu torneio foi publicado no banco de dados.");
+            document.getElementById("form-evento-publico").reset();
+            if (publicMarker) {
+                publicMap.removeLayer(publicMarker);
+                publicMarker = null;
+            }
+            await carregarDadosPublicos();
+        } else {
+            alert("Erro ao publicar o torneio.");
+        }
+    };
+}
+
+// 🔒 GERENCIAMENTO DE ACESSO AO PAINEL DE CONTROLE
+function configurarNavegacaoLogin() {
+    const overlay = document.getElementById("login-overlay");
+    const portal = document.getElementById("portal-publico");
+    const dashboard = document.getElementById("main-dashboard");
+
+    document.getElementById("btn-abrir-login").onclick = () => overlay.style.display = "flex";
+    document.getElementById("btn-fechar-login").onclick = () => overlay.style.display = "none";
+
+    document.getElementById("form-login").onsubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("login-email").value;
+        const senha = document.getElementById("login-senha").value;
+
+        if (email === "admin@eventhub.com" && senha === "123456") {
+            overlay.style.display = "none";
+            portal.style.display = "none";
+            dashboard.style.display = "flex";
+            
+            const statusDot = document.getElementById("api-status");
+            statusDot.innerHTML = '<span class="status-dot online"></span> API Online';
+            
+            // Carrega de forma segura os dados administrativos nas tabelas
+            try { await carregarDadosPublicos(); } catch(e){}
+            try { await carregarParticipantes(); } catch(e){}
+            try { await carregarCampeonatos(); } catch(e){}
+            try { await carregarInscricoes(); } catch(e){}
+            
+            configurarFormulariosAdmin();
+        } else {
+            alert("Acesso negado. Credenciais incorretas.");
+        }
+    };
+
+    document.getElementById("btn-logout").onclick = () => {
+        dashboard.style.display = "none";
+        portal.style.display = "flex";
+        setTimeout(() => publicMap.invalidateSize(), 200);
+    };
+
+    // Cliques das abas internas do Admin
+    const links = document.querySelectorAll(".menu a");
+    links.forEach(link => {
+        link.onclick = (e) => {
+            e.preventDefault();
+            links.forEach(l => l.classList.remove("active"));
+            link.classList.add("active");
+            document.querySelectorAll(".content-section").forEach(s => s.style.display = "none");
+            document.getElementById(link.getAttribute("href").substring(1)).style.display = "block";
+        };
+    });
+}
+
+// FORMULÁRIOS INTERNOS DO CADASTRO ADMIN
+function configurarFormulariosAdmin() {
+    document.getElementById("form-participante").onsubmit = async (e) => {
+        e.preventDefault();
+        const dados = {
+            nome: document.getElementById("part-nome").value,
+            email: document.getElementById("part-email").value,
+            telefone: document.getElementById("part-telefone").value
+        };
+        const res = await fetch(API_URL + "/participantes/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dados)
+        });
+        if (res.ok) { 
+            alert("Atleta Cadastrado com sucesso!"); 
+            document.getElementById("form-participante").reset(); 
+            await carregarParticipantes(); 
+        }
+    };
+
+    document.getElementById("form-campeonato").onsubmit = async (e) => {
+        e.preventDefault();
+        const dados = {
+            id_evento: parseInt(document.getElementById("camp-evento").value),
+            modalidade: document.getElementById("camp-modalidade").value,
+            premiacao: parseFloat(document.getElementById("camp-premiacao").value || 0),
+            vagas_limitadas: parseInt(document.getElementById("camp-vagas").value)
+        };
+        const res = await fetch(API_URL + "/campeonatos/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dados)
+        });
+        if (res.ok) { 
+            alert("Campeonato Criado!"); 
+            document.getElementById("form-campeonato").reset(); 
+            await carregarCampeonatos(); 
+        }
+    };
+
+    document.getElementById("form-inscricao").onsubmit = async (e) => {
+        e.preventDefault();
+        const dados = {
+            id_participante: parseInt(document.getElementById("ins-participante").value),
+            id_campeonato: parseInt(document.getElementById("ins-campeonato").value)
+        };
+        const res = await fetch(API_URL + "/inscricoes/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dados)
+        });
+        if (res.ok) { 
+            alert("Inscrição Confirmada!"); 
+            document.getElementById("form-inscricao").reset(); 
+            await carregarInscricoes(); 
+        }
+    };
+}
+
+// TEMA, IDIOMA E LISTAGEM AUXILIAR
+function configurarTema() {
+    const body = document.body;
+    const alternar = (btn) => {
+        if (body.classList.contains("dark-theme")) {
+            body.className = "light-theme";
+            btn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+        } else {
+            body.className = "dark-theme";
+            btn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+        }
+    };
+    document.getElementById("theme-toggle").onclick = () => alternar(document.getElementById("theme-toggle"));
+    document.getElementById("theme-toggle-public").onclick = () => alternar(document.getElementById("theme-toggle-public"));
+}
+
+function configurarIdioma() {
+    const select = document.getElementById("select-language");
+    select.onchange = (e) => {
+        const lang = e.target.value;
+        const termos = dicionario[lang];
+        for (const id in termos) {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = termos[id];
+        }
+    };
+}
+
+async function carregarParticipantes() {
+    const res = await fetch(API_URL + "/participantes/"); if (!res.ok) return;
+    const dados = await res.json();
+    const t = document.getElementById("tabela-participantes"); const s = document.getElementById("ins-participante");
+    if(t) t.innerHTML = ""; if(s) s.innerHTML = '<option value="">Selecione...</option>';
+    dados.forEach(p => {
+        if(t) t.innerHTML += `<tr><td>#${p.id_participante}</td><td>${p.nome}</td><td>${p.email}</td><td>${p.telefone || '-'}</td></tr>`;
+        if(s) s.innerHTML += `<option value="${p.id_participante}">${p.nome}</option>`;
+    });
+}
+
+async function carregarCampeonatos() {
+    const res = await fetch(API_URL + "/campeonatos/"); if (!res.ok) return;
+    const dados = await res.json();
+    const t = document.getElementById("tabela-campeonatos"); const s = document.getElementById("ins-campeonato");
+    if(t) t.innerHTML = ""; if(s) s.innerHTML = '<option value="">Selecione...</option>';
+    dados.forEach(c => {
+        if(t) t.innerHTML += `<tr><td>${c.nome_evento || 'Evento'}</td><td>${c.modalidade}</td><td>R$ ${c.premiacao}</td><td>${c.vagas_limitadas}</td></tr>`;
+        if(s) s.innerHTML += `<option value="${c.id_campeonato}">${c.modalidade}</option>`;
+    });
+}
+
+async function carregarInscricoes() {
+    const res = await fetch(API_URL + "/inscricoes/"); if (!res.ok) return;
+    const dados = await res.json();
+    const t = document.getElementById("tabela-inscricoes"); if(t) t.innerHTML = "";
+    dados.forEach(i => { if(t) t.innerHTML += `<tr><td>${i.nome_participante}</td><td>${i.modalidade_campeonato}</td><td>${i.nome_evento}</td><td>${i.status_inscricao}</td></tr>`; });
+}    </script>
+</body>
+</html>
