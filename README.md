@@ -1,4 +1,6 @@
 # 🏆 EventHub - API Gamer Modular
+## 🚀 Status do Projeto
+Banco de dados atualizado para o Supabase via HTTP.
 
 O **EventHub** é uma API RESTful de alta performance desenvolvida para o gerenciamento de torneios de eSports. O projeto foi projetado seguindo uma arquitetura em camadas (modular), separando completamente a lógica de negócios e persistência de dados de qualquer interface com o usuário (Frontend/Client).
 
