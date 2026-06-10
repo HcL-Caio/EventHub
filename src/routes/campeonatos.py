@@ -7,74 +7,49 @@ router = APIRouter(prefix="/campeonatos", tags=["Campeonatos"])
 class CampeonatoSchema(BaseModel):
     id_evento: int
     modalidade: str
-    premiacao: float = 0.00
-    vagas_limitadas: int
+    premiacao: str
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def cadastrar_campeonato(camp: CampeonatoSchema):
-    conexao = get_db_connection()
-    cursor = conexao.cursor()
-    cursor.execute("SELECT id_evento FROM eventos WHERE id_evento = ?", (camp.id_evento,))
-    if not cursor.fetchone():
-        conexao.close()
-        raise HTTPException(status_code=400, detail="O ID do evento fornecido não existe.")
+    db = get_db_connection()
     try:
-        cursor.execute(
-            "INSERT INTO campeonatos (id_evento, modalidade, premiacao, vagas_limitadas) VALUES (?, ?, ?, ?)",
-            (camp.id_evento, camp.modalidade, camp.premiacao, camp.vagas_limitadas)
-        )
-        conexao.commit()
-        return {"mensagem": "Campeonato criado com sucesso!", "modalidade": camp.modalidade}
+        dados = {"id_evento": camp.id_evento, "modalidade": camp.modalidade, "premiacao": camp.premiacao}
+        db.table("campeonatos").insert(dados).execute()
+        return {"mensagem": "Campeonato cadastrado com sucesso!"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conexao.close()
 
 @router.get("/")
 def listar_campeonatos():
+    db = get_db_connection()
     try:
-        conexao = get_db_connection()
-        cursor = conexao.cursor()
-        query = """
-            SELECT c.id_campeonato, c.modalidade, c.premiacao, c.vagas_limitadas, e.nome AS nome_evento, c.id_evento
-            FROM campeonatos c
-            INNER JOIN eventos e ON c.id_evento = e.id_evento
-        """
-        cursor.execute(query)
-        return [
-            {"id_campeonato": r[0], "modalidade": r[1], "premiacao": r[2], "vagas_limitadas": r[3], "nome_evento": r[4], "id_evento": r[5]}
-            for r in resultados
-        ] if (resultados := cursor.fetchall()) else []
+        resposta = db.table("campeonatos").select("id_campeonato, id_evento, modalidade, premiacao").execute()
+        return resposta.data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conexao.close()
 
 @router.put("/{id_campeonato}")
 def atualizar_campeonato(id_campeonato: int, camp: CampeonatoSchema):
+    db = get_db_connection()
     try:
-        conexao = get_db_connection()
-        cursor = conexao.cursor()
-        cursor.execute(
-            "UPDATE campeonatos SET id_evento = ?, modalidade = ?, premiacao = ?, vagas_limitadas = ? WHERE id_campeonato = ?",
-            (camp.id_evento, camp.modalidade, camp.premiacao, camp.vagas_limitadas, id_campeonato)
-        )
-        if cursor.rowcount == 0:
+        dados = {"id_evento": camp.id_evento, "modalidade": camp.modalidade, "premiacao": camp.premiacao}
+        resposta = db.table("campeonatos").update(dados).eq("id_campeonato", id_campeonato).execute()
+        if not resposta.data:
             raise HTTPException(status_code=404, detail="Campeonato não encontrado.")
-        conexao.commit()
         return {"mensagem": "Campeonato atualizado com sucesso!"}
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conexao.close()
 
 @router.delete("/{id_campeonato}", status_code=status.HTTP_204_NO_CONTENT)
 def excluir_campeonato(id_campeonato: int):
-    conexao = get_db_connection()
-    cursor = conexao.cursor()
-    cursor.execute("DELETE FROM campeonatos WHERE id_campeonato = ?", (id_campeonato,))
-    if cursor.rowcount == 0:
-        conexao.close()
-        raise HTTPException(status_code=404, detail="Campeonato não encontrado.")
-    conexao.commit()
-    conexao.close()
+    db = get_db_connection()
+    try:
+        resposta = db.table("campeonatos").delete().eq("id_campeonato", id_campeonato).execute()
+        if not resposta.data:
+            raise HTTPException(status_code=404, detail="Campeonato não encontrado.")
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

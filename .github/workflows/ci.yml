@@ -1,0 +1,23 @@
+name: Pipeline CI EventHub
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        pip install fastapi uvicorn pytest httpx psycopg2-binary python-dotenv
+    - name: Run Tests
+      run: |
+        pytest

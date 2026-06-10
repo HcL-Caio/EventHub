@@ -1,73 +1,55 @@
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
-from datetime import date
-from typing import Optional
 from src.config.database import get_db_connection
 
 router = APIRouter(prefix="/eventos", tags=["Eventos"])
 
 class EventoSchema(BaseModel):
     nome: str
-    data_inicio: date
-    local_evento: str
-    descricao: Optional[str] = None
+    data: str
+    local: str
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-def cadastrar_evento(evento: EventoSchema):
+def cadastrar_evento(evt: EventoSchema):
+    db = get_db_connection()
     try:
-        conexao = get_db_connection()
-        cursor = conexao.cursor()
-        comando_sql = "INSERT INTO eventos (nome, data_inicio, local_evento, descricao) VALUES (?, ?, ?, ?)"
-        valores = (evento.nome, str(evento.data_inicio), evento.local_evento, evento.descricao)
-        cursor.execute(comando_sql, valores)
-        conexao.commit()
-        return {"mensagem": "Evento cadastrado com sucesso!", "nome": evento.nome}
+        dados = {"nome": evt.nome, "data": evt.data, "local": evt.local}
+        db.table("eventos").insert(dados).execute()
+        return {"mensagem": "Evento cadastrado no Supabase!", "nome": evt.nome}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro ao salvar: {str(e)}")
-    finally:
-        conexao.close()
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/")
 def listar_eventos():
+    db = get_db_connection()
     try:
-        conexao = get_db_connection()
-        cursor = conexao.cursor()
-        cursor.execute("SELECT id_evento, nome, data_inicio, local_evento, descricao, criado_em FROM eventos")
-        resultados = cursor.fetchall()
-        return [
-            {"id_evento": r[0], "nome": r[1], "data_inicio": r[2], "local_evento": r[3], "descricao": r[4], "criado_em": r[5]}
-            for r in resultados
-        ]
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Erro ao buscar: {str(e)}")
-    finally:
-        conexao.close()
-
-@router.put("/{id_evento}")
-def atualizar_evento(id_evento: int, evento: EventoSchema):
-    try:
-        conexao = get_db_connection()
-        cursor = conexao.cursor()
-        cursor.execute(
-            "UPDATE eventos SET nome = ?, data_inicio = ?, local_evento = ?, descricao = ? WHERE id_evento = ?",
-            (evento.nome, str(evento.data_inicio), evento.local_evento, evento.descricao, id_evento)
-        )
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Evento não encontrado.")
-        conexao.commit()
-        return {"mensagem": "Evento atualizado com sucesso!"}
+        resposta = db.table("eventos").select("id_evento, nome, data, local").execute()
+        return resposta.data
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conexao.close()
+
+@router.put("/{id_evento}")
+def atualizar_evento(id_evento: int, evt: EventoSchema):
+    db = get_db_connection()
+    try:
+        dados = {"nome": evt.nome, "data": evt.data, "local": evt.local}
+        resposta = db.table("eventos").update(dados).eq("id_evento", id_evento).execute()
+        if not resposta.data:
+            raise HTTPException(status_code=404, detail="Evento não encontrado.")
+        return {"mensagem": "Evento atualizado com sucesso!"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.delete("/{id_evento}", status_code=status.HTTP_204_NO_CONTENT)
 def excluir_evento(id_evento: int):
-    conexao = get_db_connection()
-    cursor = conexao.cursor()
-    cursor.execute("DELETE FROM eventos WHERE id_evento = ?", (id_evento,))
-    if cursor.rowcount == 0:
-        conexao.close()
-        raise HTTPException(status_code=404, detail="Evento não encontrado.")
-    conexao.commit()
-    conexao.close()
+    db = get_db_connection()
+    try:
+        resposta = db.table("eventos").delete().eq("id_evento", id_evento).execute()
+        if not resposta.data:
+            raise HTTPException(status_code=404, detail="Evento não encontrado.")
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
