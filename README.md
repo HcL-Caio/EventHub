@@ -11,40 +11,31 @@ O sistema conta com dois **CRUDs completos e independentes** integrados nativame
 ## 🚀 Tecnologias Utilizadas
 
 * **Python 3.11+**
-* **FastAPI**: Framework web moderno e ágil para construção de APIs.
+* **FastAPI**: Framework web moderno para construção de APIs.
 * **Pydantic**: Camada de validação de dados e tipagem estrita via esquemas.
-* **SQLite3**: Banco de dados relacional embutido para persistência local de dados.
-* **Uvicorn**: Servidor ASGI de alta performance para execução da aplicação.
+* **Supabase (PostgreSQL)**: Banco de dados relacional hospedado na nuvem, consumido via Client HTTP para máxima compatibilidade e bypass de firewalls de rede.
+* **Pytest & TestClient**: Infraestrutura de testes automatizados integrada à esteira de CI.
+* **Uvicorn**: Servidor ASGI para execução da aplicação.
 
 ---
 
-## ⚙️ Funcionalidades e Endpoints (Os 2 CRUDs)
+## ⚙️ Funcionalidades e Endpoints (Trabalho em Equipe e os 4 CRUDs)
 
-A documentação interativa e testes das rotas podem ser acessados em tempo real através da interface do Swagger em: `http://127.0.0.1:8000/docs`.
+O sistema agora conta com **4 módulos de CRUD independentes e persistentes na nuvem**:
 
 ### 1. CRUD de Usuários & Autenticação
-Gerencia o controle de acesso e contas cadastradas na plataforma.
-* `POST /api/cadastro`: Realiza o registro de competidores comuns (nível `user`) impedindo a duplicação de e-mails via restrições no SQLite.
-* `POST /api/login`: Valida credenciais e retorna o perfil e o nível de autoridade da conta (`user` ou `admin`).
-* `GET /api/admin/usuarios`: Rota administrativa para listagem em tempo real de todas as contas salvas no banco.
-* `DELETE /api/admin/usuarios/{user_id}`: Rota administrativa para exclusão de contas, com proteção nativa contra a exclusão acidental do Administrador Principal.
+* `POST /api/cadastro`: Registro de competidores comuns.
+* `POST /api/login`: Valida credenciais e retorna o perfil e nível de autoridade.
+* `GET /api/admin/usuarios`: Listagem de todas as contas salvas no banco.
+* `DELETE /api/admin/usuarios/{user_id}`: Remoção de contas com travas de segurança.
 
 ### 2. CRUD de Torneios
-Camada de gerenciamento de regras de negócio para os campeonatos de eSports.
-* `POST /api/admin/torneios`: Permite ao painel administrativo registrar um novo campeonato no banco de dados fornecendo nome, data e status.
-* `GET /api/user/torneios`: Rota global que consulta o SQLite e retorna a listagem estruturada em JSON de todos os torneios disponíveis.
-* `DELETE /api/admin/torneios/{torneio_id}`: Permite a remoção definitiva de um torneio através de seu ID de registro.
+* `POST /api/admin/torneios`: Registro de novos campeonatos.
+* `GET /api/user/torneios`: Consulta e retorna todos os torneios ativos.
+* `DELETE /api/admin/torneios/{torneio_id}`: Remoção de torneios do banco de dados.
 
----
-
-## 💾 Mecanismo de Semente de Dados (Data Seeding)
-
-Para facilitar a avaliação e garantir o funcionamento imediato do ecossistema, o módulo `database.py` executa uma rotina automática durante a inicialização do servidor:
-1. Verifica e cria o arquivo físico do banco de dados e suas respectivas tabelas caso não existam.
-2. Injeta a conta mestre do administrador se o banco estiver vazio:
-   * **E-mail:** `admin@eventhub.com`
-   * **Senha:** `admin123`
-3. Popula a tabela de campeonatos com dados fictícios iniciais para validação imediata do método `GET`.
+### 3. CRUD de Participantes & Inscrições (Novas Features)
+* Gerenciamento completo de inscrições de atletas e equipes nos respectivos torneios integrados ao Supabase, garantindo integridade referencial nas tabelas de dados.
 
 ---
 
@@ -57,30 +48,20 @@ Para facilitar a avaliação e garantir o funcionamento imediato do ecossistema,
 ```bash
 python -m uvicorn src.main:app --reload
 
-📐 Arquitetura do Projeto (Divisão em Camadas)
-Para garantir a escalabilidade e a separação de conceitos (SoC), o código está estruturado da seguinte forma:
 EventHub/
-├── database/
-│   └── eventhub.db          # Arquivo do banco de dados relacional (gerado localmente)
+├── .github/workflows/
+│   └── ci.yml                # Esteira de CI automatizada (GitHub Actions)
 ├── src/
 │   ├── config/
-│   │   └── database.py       # Inicialização das tabelas e gerenciamento de conexões
+│   │   └── database.py       # Inicialização e cliente de conexão HTTP do Supabase
 │   ├── models/
-│   │   └── schemas.py        # Modelos Pydantic para validação das requisições (Payloads)
+│   │   └── schemas.py        # Modelos Pydantic para validação das requisições
 │   ├── routes/
-│   │   ├── auth_routes.py    # Endpoints do CRUD 1 (Usuários e Autenticação)
-│   │   └── tournament_routes.py # Endpoints do CRUD 2 (Gerenciamento de Torneios)
+│   │   ├── auth_routes.py    # Endpoints de Usuários e Autenticação
+│   │   ├── tournament_routes.py # Endpoints de Gerenciamento de Torneios
+│   │   └── participants_routes.py # Endpoints de Participantes e Inscrições
 │   └── main.py               # Ponto de entrada (Orquestrador) da aplicação FastAPI
-├── .gitignore                # Regras de exclusão para arquivos locais e caches do Python
+├── tests/
+│   └── test_main.py          # Arquivo de testes automatizados para validação do CI
+├── pyproject.toml            # Configurações de caminhos de execução do Pytest
 └── README.md                 # Documentação oficial do projeto
-
----
-
-### 🔥 Último Envio para o GitHub
-
-Com todos os arquivos salvos e organizados, vá no Git Bash e execute os comandos finais para deixar seu repositório impecável:
-
-```bash
-git add .
-git commit -m "feat: versão final da API modular com documentação concluída"
-git push origin main
