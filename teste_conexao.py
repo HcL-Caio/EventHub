@@ -1,27 +1,26 @@
-from src.config.database import obter_conexao
+import requests
 
-def testar():
-    print("Tentando conectar ao banco de dados EventHub...")
-    conexao = obter_conexao()
-    
-    if conexao:
-        print("Conexão realizada com sucesso!")
-        cursor = conexao.cursor()
-        try:
-            cursor.execute("SHOW TABLES;")
-            tabelas = cursor.fetchall()
-            print("\nTabelas encontradas no banco:")
-            for tabela in tabelas:
-                print(f"- {tabela[0]}")
-        except Exception as e:
-            print(f"Conectou, mas houve um erro ao listar tabelas: {e}")
-            print("Dica: Você já criou o banco 'EventHub' e as tabelas com o script SQL?")
-        finally:
-            cursor.close()
-            conexao.close()
-            print("\nConexão fechada com segurança.")
+# Suas credenciais reais do Supabase
+SUPABASE_URL = "https://mrpiwecmxwjtinwfcxvc.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_P1rcAxytTaM7bhDwMgBPVg_0-xMhdG2"
+
+# Rota HTTP (Porta 443) para ler a tabela 'eventos' que você criou no SQL Editor
+url_rest = f"{SUPABASE_URL}/rest/v1/eventos"
+
+headers = {
+    "apikey": SUPABASE_ANON_KEY,
+    "Authorization": f"Bearer {SUPABASE_ANON_KEY}"
+}
+
+print("Tentando conexão via API Web HTTP (Fura-Bloqueio de Rede)...")
+
+try:
+    resposta = requests.get(url_rest, headers=headers)
+    if resposta.status_code == 200:
+        print("\n✅ SUCESSO ABSOLUTO! O código burlou o bloqueio da rede local.")
+        print(f"Banco respondendo via HTTP. Dados atuais: {resposta.json()}")
     else:
-        print("Falha na conexão. Verifique o arquivo .env.")
-
-if __name__ == "__main__":
-    testar()
+        print(f"\n❌ Conectou na nuvem, mas a tabela retornou erro {resposta.status_code}: {resposta.text}")
+        print("Dica: Certifique-se de que clicou em 'Run without RLS' lá no site para criar as tabelas.")
+except Exception as e:
+    print(f"\n❌ ERRO DE REDE: {e}")

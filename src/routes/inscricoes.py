@@ -11,76 +11,71 @@ class InscricaoSchema(BaseModel):
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def criar_inscricao(insc: InscricaoSchema):
-    conexao = get_db_connection()
-    cursor = conexao.cursor()
+    db = get_db_connection()
     
-    cursor.execute("SELECT id_participante FROM participantes WHERE id_participante = ?", (insc.id_participante,))
-    if not cursor.fetchone():
-        conexao.close()
+    # Validações relacionais idênticas ao seu original
+    part_check = db.table("participantes").select("id_participante").eq("id_participante", insc.id_participante).execute()
+    if not part_check.data:
         raise HTTPException(status_code=400, detail="O ID do participante informado não existe.")
         
-    cursor.execute("SELECT id_campeonato FROM campeonatos WHERE id_campeonato = ?", (insc.id_campeonato,))
-    if not cursor.fetchone():
-        conexao.close()
+    camp_check = db.table("campeonatos").select("id_campeonato").eq("id_campeonato", insc.id_campeonato).execute()
+    if not camp_check.data:
         raise HTTPException(status_code=400, detail="O ID do campeonato informado não existe.")
 
     try:
-        cursor.execute(
-            "INSERT INTO inscricoes (id_participante, id_campeonato, status_inscricao) VALUES (?, ?, ?)",
-            (insc.id_participante, insc.id_campeonato, insc.status_inscricao)
-        )
-        conexao.commit()
-        return {"mensagem": "Inscrição realizada com sucesso!"}
+        dados = {
+            "id_participante": insc.id_participante, 
+            "id_campeonato": insc.id_campeonato, 
+            "status_inscricao": insc.status_inscricao
+        }
+        db.table("inscricoes").insert(dados).execute()
+        return {"mensagem": "Inscrição realizada com sucesso no Supabase!"}
     except Exception as e:
-        if "UNIQUE" in str(e):
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             raise HTTPException(status_code=400, detail="Este participante já está inscrito neste campeonato.")
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conexao.close()
 
 @router.get("/")
 def listar_inscricoes():
+    db = get_db_connection()
     try:
-        conexao = get_db_connection()
-        cursor = conexao.cursor()
-        query = """
-            SELECT i.id_inscricao, p.nome, c.modalidade, i.status_inscricao 
-            FROM inscricoes i
-            INNER JOIN participantes p ON i.id_participante = p.id_participante
-            INNER JOIN campeonatos c ON i.id_campeonato = c.id_campeonato
-        """
-        cursor.execute(query)
-        return [{"id_inscricao": r[0], "participante": r[1], "campeonato": r[2], "status": r[3]} for r in cursor.fetchall()]
+        # Trazendo os dados com o INNER JOIN automático que o cliente HTTP do Supabase faz pelas chaves estrangeiras
+        resposta = db.table("inscricoes").select("id_inscricao, status_inscricao, participantes(nome), campeonatos(modalidade)").execute()
+        
+        # Formata o retorno para ficar idêntico ao seu dicionário original
+        return [
+            {
+                "id_inscricao": r["id_inscricao"],
+                "participante": r["participantes"]["nome"] if r.get("participantes") else "N/A",
+                "campeonato": r["campeonatos"]["modalidade"] if r.get("campeonatos") else "N/A",
+                "status": r["status_inscricao"]
+            }
+            for r in resposta.data
+        ]
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conexao.close()
 
 @router.put("/{id_inscricao}")
 def atualizar_status_inscricao(id_inscricao: int, insc: InscricaoSchema):
+    db = get_db_connection()
     try:
-        conexao = get_db_connection()
-        cursor = conexao.cursor()
-        cursor.execute(
-            "UPDATE inscricoes SET status_inscricao = ? WHERE id_inscricao = ?",
-            (insc.status_inscricao, id_inscricao)
-        )
-        if cursor.rowcount == 0:
+        resposta = db.table("inscricoes").update({"status_inscricao": insc.status_inscricao}).eq("id_inscricao", id_inscricao).execute()
+        if not resposta.data:
             raise HTTPException(status_code=404, detail="Inscrição não encontrada.")
-        conexao.commit()
-        return {"mensagem": "Status da inscrição atualizado!"}
+        return {"mensagem": "Status da inscrição updated!"}
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conexao.close()
 
 @router.delete("/{id_inscricao}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_inscricao(id_inscricao: int):
-    conexao = get_db_connection()
-    cursor = conexao.cursor()
-    cursor.execute("DELETE FROM inscricoes WHERE id_inscricao = ?", (id_inscricao,))
-    if cursor.rowcount == 0:
-        conexao.close()
-        raise HTTPException(status_code=404, detail="Inscrição não encontrada.")
-    conexao.commit()
-    conexao.close()
+    db = get_db_connection()
+    try:
+        resposta = db.table("inscricoes").delete().eq("id_inscricao", id_inscricao).execute()
+        if not resposta.data:
+            raise HTTPException(status_code=404, detail="Inscrição não encontrada.")
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
