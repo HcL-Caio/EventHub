@@ -1,16 +1,30 @@
 from fastapi import FastAPI
-from src.config.database import init_db
-from src.routes import auth_routes, tournament_routes
+from fastapi.middleware.cors import CORSMiddleware
 
-# Inicializa o Banco de Dados SQLite na subida da aplicação
-init_db()
+# 🔌 1. Importando as rotas de cada um dos 4 módulos
+from src.routes import eventos, campeonatos, participantes, inscricoes
 
 app = FastAPI(
-    title="EventHub - API ",
-    description="Backend profissional organizado em camadas com 2 CRUDs independentes.",
-    version="3.0.0"
+    title="EventHub - API Modular de Alta Performance",
+    description="Backend oficial estruturado com 4 tabelas relacionais em conformidade com o script do seminário.",
+    version="4.0.0"
 )
 
-# 🔌 Conectando os módulos de rotas na API principal
-app.include_router(auth_routes.router)
-app.include_router(tournament_routes.router)
+# Configuração de CORS (Evita bloqueios de requisições se testado de outras máquinas)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 🔌 2. Ativando e incluindo os roteadores na aplicação principal
+app.include_router(eventos.router)
+app.include_router(campeonatos.router)
+app.include_router(participantes.router)
+app.include_router(inscricoes.router)
+
+@app.get("/", tags=["Home"])
+def read_root():
+    return {"mensagem": "API EventHub rodando com sucesso! Acesse /docs para a documentação completa."}
