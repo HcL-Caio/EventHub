@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routes import eventos, campeonatos, participantes, inscricoes
+from src.routes import eventos, campeonatos, participantes, inscricoes
 
 app = FastAPI(title="EventHub API", version="1.0")
 
