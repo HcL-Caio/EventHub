@@ -16,8 +16,6 @@ jobs:
       with:
         python-version: '3.11'
     - name: Install dependencies
-      run: |
-        pip install fastapi uvicorn pytest httpx supabase python-dotenv
+      run: pip install fastapi uvicorn pytest httpx supabase python-dotenv
     - name: Run Tests
-      run: |
-        PYTHONPATH=. pytest
+      run: PYTHONPATH=. pytest
