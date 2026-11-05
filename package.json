@@ -12,6 +12,8 @@
     "verify-database": "node database/tools/verify.mjs",
     "start:php": "php -S localhost:8000 -t dist backend/router.php",
     "test:backend": "php backend/tests/run.php && php backend/tests/http.php"
+    "start:php": "php -S localhost:8000 -t dist backend/router.php",
+    "test:backend": "php backend/tests/run.php && php backend/tests/http.php"
   },
   "engines": {
     "node": ">=18"
