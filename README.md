@@ -1,73 +1,49 @@
-# 🏆 EventHub - API Gamer Modular
-## 👥 Integrantes do Grupo
-* **Caio Siqueira Amaral** - Matrícula: 22505969
-* **Ryan Brito Gomes** - Matrícula: 22508757
+# Backend PHP · CRUD de decks
 
-## 🚀 Status do Projeto
-* **Banco de Dados:** Conectado ao Supabase (PostgreSQL Remoto via Client HTTP).
-* **Pipeline CI (GitHub Actions):** ✅ Passando e totalmente configurada.
-* **Deploy Funcional:** (https://eventhub-ure3.onrender.com/docs)
+Primeira etapa do backend prevista no README do projeto: PHP + PDO + MySQL 8.4, autenticação por sessão, CRUD, filtros e listagem em PDF. Sem Composer e sem dependências: o `dist/` continua sendo servido como antes e só `/app/*` é tratado por PHP.
 
-O **EventHub** é uma API RESTful de alta performance desenvolvida para o gerenciamento de torneios de eSports. O projeto foi projetado seguindo uma arquitetura em camadas (modular), separando completamente a lógica de negócios e persistência de dados de qualquer interface com o usuário (Frontend/Client).
+## O que existe
 
-O sistema conta com dois **CRUDs completos e independentes** integrados nativamente com o banco de dados relacional SQLite.
+| Rota | Ação |
+| --- | --- |
+| `/app/cadastro`, `/app/login`, `/app/logout` | Conta, sessão PHP, CSRF |
+| `/app/decks` | **Listagem** com 5 filtros (nome, formato, situação, visibilidade, cor do Líder), ordenação e paginação |
+| `/app/decks.pdf` | **PDF** da listagem, respeitando os mesmos filtros |
+| `/app/decks/novo` | **Criar** |
+| `/app/decks/{id}` | **Ler**: Líder, totais, curva de custo, pendências, cartas |
+| `/app/decks/{id}/editar` | **Atualizar**: dados, Líder, quantidades e busca de cartas (nome/ID, tipo, cor, custo, compatível com o Líder) |
+| `/app/decks/{id}/excluir` | **Excluir** (lógico, `deleted_at`) |
+| `/app/decks/{id}.pdf` | Lista de cartas de um deck |
 
----
+Tabelas usadas: `users`, `decks`, `deck_items`, `audit_events` (escrita) e `cards`, `card_texts`, `card_colors`, `printings`, `printing_assets`, `play_formats` (leitura), além das views `v_deck_summary`, `v_deck_issues`, `v_deck_cost_curve`, `v_catalog_cards`. Nenhuma alteração no schema.
 
-## 🚀 Tecnologias Utilizadas
+## Executar
 
-* **Python 3.11+**
-* **FastAPI**: Framework web moderno para construção de APIs.
-* **Pydantic**: Camada de validação de dados e tipagem estrita via esquemas.
-* **Supabase (PostgreSQL)**: Banco de dados relacional hospedado na nuvem, consumido via Client HTTP para máxima compatibilidade e bypass de firewalls de rede.
-* **Pytest & TestClient**: Infraestrutura de testes automatizados integrada à esteira de CI.
-* **Uvicorn**: Servidor ASGI para execução da aplicação.
+1. Instale o banco (`database/README.md`) e crie um usuário MySQL da aplicação com SELECT/INSERT/UPDATE/DELETE (sem DDL).
+2. Configure o ambiente (nunca em arquivo versionado):
 
----
+```text
+export DB_USER=atlas_app DB_PASSWORD=sua_senha   # opcionais: DB_HOST, DB_PORT, DB_NAME
+php -S localhost:8000 -t dist backend/router.php
+```
 
-## ⚙️ Funcionalidades e Endpoints (Trabalho em Equipe e os 4 CRUDs)
+Abra **http://localhost:8000/app**. Requer PHP 8.1+ com `pdo_mysql`, `mbstring` e `intl` (esta é opcional: só melhora a medida de acentos no PDF).
 
-O sistema agora conta com **4 módulos de CRUD independentes e persistentes na nuvem**:
+## Decisões
 
-### 1. CRUD de Usuários & Autenticação
-* `POST /api/cadastro`: Registro de competidores comuns.
-* `POST /api/login`: Valida credenciais e retorna o perfil e nível de autoridade.
-* `GET /api/admin/usuarios`: Listagem de todas as contas salvas no banco.
-* `DELETE /api/admin/usuarios/{user_id}`: Remoção de contas com travas de segurança.
+- **Dono sempre vem da sessão.** Toda consulta filtra `user_id` e `deleted_at IS NULL`; deck de outro usuário responde 404. URLs usam `public_id` (UUID).
+- **Concorrência:** cada escrita trava a linha (`SELECT … FOR UPDATE`), confere `revision`, e incrementa. Aba desatualizada recebe aviso em vez de sobrescrever.
+- **Rascunho pode ser incompleto**, mas "Pronto" só passa com `v_deck_issues` vazio na mesma transação. Se uma alteração deixar um deck pronto com pendências, ele volta a Rascunho com aviso. Isso é verificação estrutural, não legalidade competitiva.
+- **Regras duras ao adicionar:** carta existente, tipo do deck principal, limite por ID (`deck_copy_limit`) e no máximo 50. Cores ficam para as pendências.
+- **Segurança:** `password_hash` (Argon2id, ou bcrypt com limite de 72 bytes quando indisponível), `session_regenerate_id` no login, cookie HttpOnly/SameSite, CSRF em todo POST, bloqueio após 5 falhas em 15 min (via `audit_events`, sem guardar o e-mail), saída escapada, redirecionamentos só internos, CSP e demais cabeçalhos, erros detalhados só no log.
+- **Fora do escopo desta etapa:** recuperação de senha por e-mail, verificação de e-mail, coleção/favoritos no servidor, perfis `editor`/`admin`, escolha de arte (`preferred_printing_id`) e DON!! específico.
 
-### 2. CRUD de Torneios
-* `POST /api/admin/torneios`: Registro de novos campeonatos.
-* `GET /api/user/torneios`: Consulta e retorna todos os torneios ativos.
-* `DELETE /api/admin/torneios/{torneio_id}`: Remoção de torneios do banco de dados.
+## Testes
 
-### 3. CRUD de Participantes & Inscrições (Novas Features)
-* Gerenciamento completo de inscrições de atletas e equipes nos respectivos torneios integrados ao Supabase, garantindo integridade referencial nas tabelas de dados.
+```text
+php backend/tests/run.php          # repositórios, autenticação, filtros, PDF (SQLite com o catálogo real)
+php backend/tests/http.php         # ponta a ponta com servidor, cookies e CSRF reais
+php backend/tests/run.php --mysql  # a mesma suíte no SEU MySQL 8.4 (DB_*), dentro de uma transação com ROLLBACK
+```
 
----
-
-## 🛠️ Como Executar o Projeto
-
-1. Certifique-se de ter o Python instalado em sua máquina.
-2. Clone o repositório para o seu ambiente local.
-3. Abra o terminal na pasta raiz do projeto (`EventHub/`) e execute o servidor através do módulo do Uvicorn:
-
-```bash
-python -m uvicorn src.main:app --reload
-
-EventHub/
-├── .github/workflows/
-│   └── ci.yml                # Esteira de CI automatizada (GitHub Actions)
-├── src/
-│   ├── config/
-│   │   └── database.py       # Inicialização e cliente de conexão HTTP do Supabase
-│   ├── models/
-│   │   └── schemas.py        # Modelos Pydantic para validação das requisições
-│   ├── routes/
-│   │   ├── auth_routes.py    # Endpoints de Usuários e Autenticação
-│   │   ├── tournament_routes.py # Endpoints de Gerenciamento de Torneios
-│   │   └── participants_routes.py # Endpoints de Participantes e Inscrições
-│   └── main.py               # Ponto de entrada (Orquestrador) da aplicação FastAPI
-├── tests/
-│   └── test_main.py          # Arquivo de testes automatizados para validação do CI
-├── pyproject.toml            # Configurações de caminhos de execução do Pytest
-└── README.md                 # Documentação oficial do projeto
+Os dois primeiros usam SQLite com as 3.123 cartas reais e as **views reais** de `database/04_views.sql` (com ajustes mínimos de sintaxe). Eles **não substituem o MySQL**: collation, `FOR UPDATE` e *prepared statements* nativos só são exercitados com `--mysql`. Rode essa opção antes de entregar.
